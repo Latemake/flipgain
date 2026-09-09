@@ -2,6 +2,7 @@ node_modules/
 dist/
 desktop-preview.png
 mobile-preview.png
+result-preview.png
 .env
 .env.*
 !.env.example
