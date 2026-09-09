@@ -1,4 +1,6 @@
+import {findReference} from './market-references.js';
 export const conditions={new:'Uudenveroinen',good:'Hyvä',fair:'Kulunut mutta toimiva',poor:'Viallinen / korjattava'};
+export const priceBases={reference:'Tallennettu mallikohtainen vertailu',market:'Oma tieto käytetyn hintatasosta',formula:'Vain karkea arvonalenemislaskelma'};
 export const goals={profit:'Paras hinta',quick:'Nopea kauppa',trade:'Vaihtokauppa'};
 // These are deliberately broad product-planning assumptions, not market statistics.
 export const categories={
@@ -17,13 +19,23 @@ function number(value,label,{optional=false,max=1_000_000}={}){
   if(value===''||value===undefined||value===null){if(optional)return null;throw new Error(`${label} puuttuu.`);}
   const parsed=Number(value);if(!Number.isFinite(parsed)||parsed<0||parsed>max)throw new Error(`Tarkista ${label.toLowerCase()}.`);return parsed;
 }
-export function estimate(product){
+export function estimate(product,{now=Date.now()}={}){
   const category=Object.hasOwn(categories,product.category)?categories[product.category]:null;
   if(!category||!Object.hasOwn(conditionFactors,product.condition)||!Object.hasOwn(goals,product.goal))throw new Error('Valitse tuoteryhmä, kunto ja tavoite.');
   const buy=number(product.buy,'Hankintahinta',{optional:true});
   const expenses=number(product.expenses??0,'Myyntikulut');
   const fee=number(product.fee??0,'Välityspalkkio',{max:99.9});
-  const basis={buy,expenses,fee,version:3};
+  const basis={buy,expenses,fee,version:4};
+  if(product.priceBasis==='market'||product.priceBasis==='reference'){
+    const reference=product.priceBasis==='reference'?findReference(product,now):null;
+    if(product.priceBasis==='reference'&&(!reference||product.referenceConfirmed!=='yes'))throw new Error('Tarkista vertailuilmoituksen sopivuus ja vahvista hintaperuste uudelleen.');
+    const typical=reference?reference.price:number(product.marketPrice,'Käytetyn tuotteen hintataso');
+    if(typical<=0)throw new Error('Käytetyn hintatason pitää olla suurempi kuin nolla.');
+    const ask=round(typical*(product.goal==='quick'?.9:1));
+    const net=round(ask*(1-fee/100)-expenses);
+    return {...basis,sufficient:true,method:product.priceBasis,source:reference,typical,ask,net,profit:buy===null?null:round(net-buy),breakEven:buy===null?null:round((buy+expenses)/(1-fee/100)),low:null,high:null};
+  }
+  if(product.priceBasis!=='formula')throw new Error('Valitse hintaperuste. Vanhaa yleiskaavaa ei käytetä automaattisesti.');
   if(category.unsupported)return {...basis,sufficient:false,reason:'Keräilyesineen, antiikin tai taiteen arvoa ei voi päätellä uushinnasta ja iästä. Tarkista saman esineen toteutuneet kaupat tai pyydä asiantuntijan arvio.'};
   const reference=number(product.referencePrice,'Hinta uutena');
   if(reference<=0)throw new Error('Hinnan uutena pitää olla suurempi kuin nolla.');
@@ -35,7 +47,7 @@ export function estimate(product){
   const ask=round(typical*(product.goal==='quick'?.9:1));
   const net=round(ask*(1-fee/100)-expenses);
   const lowNet=round(low*(1-fee/100)-expenses);
-  return {...basis,sufficient:true,reference,age,typical,low,high,ask,net,lowNet,profit:buy===null?null:round(net-buy),lowProfit:buy===null?null:round(lowNet-buy),breakEven:buy===null?null:round((buy+expenses)/(1-fee/100)),factor,ageFactor};
+  return {...basis,sufficient:true,method:'formula',reference,age,typical,low,high,ask,net,lowNet,profit:buy===null?null:round(net-buy),lowProfit:buy===null?null:round(lowNet-buy),breakEven:buy===null?null:round((buy+expenses)/(1-fee/100)),factor,ageFactor};
 }
 export function assessTrade(valuation,{resale,cash=0,direction='pay',costs=0,fee=0}){
   if(!valuation.sufficient)throw new Error('Laske ensin oman tuotteesi arvio.');
@@ -61,5 +73,5 @@ export function guidance(product){
   return {ease,risks};
 }
 export function draftListing(product,valuation){
-  return [product.name,'',`Kunto: ${conditions[product.condition]}.`,product.details||'',product.age!==''?`Ikä noin ${product.age} vuotta.`:'',valuation.sufficient?`Hintapyyntö: ${money(valuation.ask)}.`:'',product.goal==='trade'?'Myös vaihtoa voi ehdottaa.':''].join('\n').trim();
+  return [product.name,'',`Kunto: ${conditions[product.condition]}.`,product.details||'',product.age!==''&&product.age!=null?`Ikä noin ${product.age} vuotta.`:'',valuation.sufficient?`Hintapyyntö: ${money(valuation.ask)}.`:'',product.goal==='trade'?'Myös vaihtoa voi ehdottaa.':''].join('\n').trim();
 }

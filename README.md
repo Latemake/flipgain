@@ -2,30 +2,33 @@
 
 Sivusto: https://latemake.github.io/flipgain/
 
-Selaimessa toimiva suomenkielinen myynti- ja vaihtolaskuri. Ei kuvia, taustapalvelinta, API-avaimia tai tekoälykutsuja. Sovellus toimii sivun lataamisen jälkeen myös ilman verkkoyhteyttä. Sivun avaaminen uudelleen vaatii yhteyden GitHub Pagesiin; sovellus ei asenna service workeria.
+Selaimessa toimiva suomenkielinen myynti- ja vaihtolaskuri. Ei kuvia, taustapalvelinta, API-avaimia tai tekoälykutsuja. Laskenta toimii myös ilman verkkoyhteyttä sivun lataamisen jälkeen.
 
-## Käyttöpolku
+## Hinnoittelun korjaus
 
-1. Tuotteen nimi ja tuoteryhmä.
-2. Kuntoluokka ja vapaaehtoinen kuvaus.
-3. Ikä ja saman mallin hinta uutena.
-4. Tavoite: myynti, nopea kauppa tai vaihto.
-5. Oma hankintahinta ja mahdolliset myyntikulut (valinnaiset).
-6. Tarkistus ja laskennallinen hintapyyntö, kulut, voitto/tappio sekä ilmoitusteksti.
+Yleinen uushintaan, ikään ja kuntoluokkaan perustuva kaava ei tuottanut riittävää tuotekohtaista hintasuositusta. Se saattoi esimerkiksi aliarvioida KuKirin G2 Pron. Sitä ei enää käytetä automaattisesti.
 
-Tietoja kysytään yksi vaihe kerrallaan. Vaihtolaskuri vertaa käyttäjän antamaa vaihtokohteen jälleenmyyntiarviota, myyntikuluja, palkkiota ja välirahaa suoraan myyntiin. Markkinapaikkalinkit avaavat ulkoisen sivun vain painettaessa.
+Hintaperuste valitaan erikseen:
 
-## Mitä arvio tarkoittaa
+1. **Tallennettu mallikohtainen vertailu.** Julkinen yksittäinen myynti-ilmoitus, lähde ja tarkastuspäivä. Käyttäjä vahvistaa version ja kunnon vertailukelpoisuuden. Kyse on pyyntihinnasta, ei toteutuneesta kaupasta tai markkinamediaanista.
+2. **Käyttäjän tieto vastaavan käytetyn hinnasta.** Esimerkiksi käyttäjän antamasta 320 eurosta ei enää vähennetä uushintakaavan ikä- ja kuntokertoimia uudelleen. Tämä on käyttäjän oletus, ei sivuston itsenäisesti vahvistama hinta.
+3. **Vain karkea laskelma.** Erikseen valittava vanha arvonalenemiskaava. Tulos on selvästi merkitty yleiskaavan tulokseksi, ei tuotekohtaiseksi hintasuositukseksi. Keräilylle, antiikille ja taiteelle yleiskaava ei anna hintaa.
 
-Hintapyyntö = käyttäjän antama uushinta × tuoteryhmän lähtökerroin × exp(−arvonalenemiskerroin × ikä vuosina) × kuntokerroin × tavoitekerroin.
+Nopean kaupan tavoite alentaa valittua lähtöhintaa 10 %. Tämä on hinnoittelustrategia, ei lupaus myyntinopeudesta. Nettotuotto vähentää annetut kulut ja palkkion. Voitto vähentää myös hankintahinnan; tuntematon hankintahinta ei ole nolla. Veroja ja oman työn arvoa ei huomioida.
 
-Kertoimet ovat tämän työkalun **suunnitteluoletuksia**, eivät markkinadatasta opittuja lukuja. Niiden tarkat arvot ovat `src/valuation.js`-tiedostossa, ja laskentaperusteet näytetään käyttäjälle. Nopean kaupan kerroin on 0,9, muiden 1. Esitetty vaihteluväli on malliin valittu vaihtelu, ei tilastollinen luottamusväli. Todellinen kauppahinta voi poiketa siitä huomattavasti.
+## Vertailuaineiston rajaus
 
-Tuotteen nimeä tai vapaata kuvausta ei tulkita hinnan määrittämiseksi. Vapaa kuvaus siirtyy ilmoitustekstiin. Harvinaisuutta, mallikohtaista kysyntää, sesonkihintoja tai uusia myynti-ilmoituksia ei haeta. Keräilylle, antiikille ja taiteelle ei anneta numeerista hinta-arviota yleisellä mallilla. Viallisen tuotteen arvo voi olla nolla. Voittolaskelma ei sisällä veroja tai oman työn hintaa.
+`src/market-references.js` sisältää tällä hetkellä **yhden suomalaisen KuKirin G2 Pro -vertailuilmoituksen**, ei kattavaa tuotetietokantaa. [Nettimoto-ilmoituksen](https://www.nettimoto.com/kugoo/wish-01/3422985) pyyntihinta oli tarkasteltaessa 349 €. Tieto tallennettiin 9.9.2026. Ilmoituksen saatavuutta ei tarkisteta automaattisesti sivustoa käytettäessä.
 
-## Tallennukset
+Vertailua ei ehdoteta eri G2-mallille, varaosille, eri nimessä ilmoitetulle vuosimallille tai vialliseksi merkitylle tuotteelle. Vertailu vanhenee 30 päivän jälkeen, jolloin hintaperuste on valittava uudelleen. Tieto on staattisesti mukana julkaisussa, joten ylläpitäjän täytyy tarkistaa ja julkaista päivitykset. Muille malleille ei väitetä löytyneen hintatietoa.
 
-Luonnos tallentuu localStorageen ja erikseen tallennetut arviot IndexedDB:hen tässä selaimessa. Tuotetietoja ei lähetetä palvelimelle. Edellisen version tallennetut tuotteet voidaan avata tietojen täydentämistä varten; niiden kuvia ei näytetä eikä käytetä. Selaimen tietojen poistaminen poistaa paikalliset tallennukset.
+Vapaata kuvausta ei tulkita tekoälyllä eikä esimerkiksi lommoa, ajomäärää, akun kuntoa tai vaihdettuja jarrupaloja muuteta automaattisesti euroiksi. Käyttäjän on arvioitava vertailun sopivuus. Tiedossa oleva hintataso koskee käyttäjän omaa tuotetta nykyisessä kunnossa. Nimen, tuoteryhmän tai kuntoluokan muuttaminen tyhjentää vanhan hintaperusteen, jotta toisen tuotteen hinta ei siirry vahingossa mukaan.
+
+## Käyttö ja tallennus
+
+Tuote, kunto ja hintaperuste kysytään vaiheittain. Uushintaa ja ikää kysytään vain erikseen valittua yleiskaavaa varten. Tuloksessa näkyvät lähtötieto, nettotuotto, vaihtotarjouksen laskuri ja kopioitava ilmoitusteksti.
+
+Luonnos tallentuu localStorageen ja erikseen tallennetut arviot IndexedDB:hen. Tietoja ei lähetetä palvelimelle. Edellisen hinnoitteluversion tallennukset avataan uuden hintaperusteen valintaan, eivät suoraan vanhaan hintaehdotukseen. Markkinapaikkalinkit avaavat ulkoisen palvelun vain painettaessa.
 
 ## Kehitys ja julkaisu
 
@@ -37,6 +40,6 @@ node scripts/browser-check.mjs
 npm run build:pages
 ```
 
-Selaintesti tarvitsee käynnissä olevan Viten ja Playwright Chromiumin (`npx playwright install chromium`). Se testaa koko lomakkeen ilman verkkoyhteyttä ja varmistaa, ettei sovellus tee API-kutsuja. Tuotantotarkistuksen osoitteen voi antaa `FLIPGAIN_TEST_URL`-ympäristömuuttujalla.
+Selaintesti tarvitsee käynnissä olevan Viten ja Playwright Chromiumin (`npx playwright install chromium`). Testit tarkistavat myös 320 €:n käyttäjähinnan säilymisen, 349 €:n lähteen alkuperän, väärien mallien ja vanhentuneiden lähteiden hylkäyksen sekä verkkokutsuttoman käyttöpolun. Julkisen sivuston testi käyttää `FLIPGAIN_TEST_URL`-ympäristömuuttujaa.
 
-GitHub Pages julkaisee `main`-haaran `docs`-kansion. Aja `npm run build:pages` ja puske lähdekoodin sekä `docs`-kansion muutokset. Taustapalvelua ei tarvita. Kaikki fontit ovat laitteen omia, eikä ulkoisia fontti- tai analytiikkapalveluja kutsuta.
+GitHub Pages julkaisee `main`-haaran `docs`-kansion. Aja `npm run build:pages` ja puske lähdekoodin sekä `docs`-kansion muutokset. Kaikki fontit ovat laitteen omia. Sivun avaaminen uudelleen vaatii yhteyden GitHub Pagesiin; service workeria ei käytetä.
