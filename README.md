@@ -2,67 +2,41 @@
 
 Sivusto: https://latemake.github.io/flipgain/
 
-Tuotekuvasta alkava suomenkielinen ohjattu käyttöpolku. Ei demotuotteita tai esitäytettyjä hintoja.
+Selaimessa toimiva suomenkielinen myynti- ja vaihtolaskuri. Ei kuvia, taustapalvelinta, API-avaimia tai tekoälykutsuja. Sovellus toimii sivun lataamisen jälkeen myös ilman verkkoyhteyttä. Sivun avaaminen uudelleen vaatii yhteyden GitHub Pagesiin; sovellus ei asenna service workeria.
 
-## Nykyinen julkaisu
+## Käyttöpolku
 
-GitHub Pages tarjoaa selaimessa toimivan käyttöliittymän. Kuvan lisääminen, yksi kysymys kerrallaan etenevä lomake, omiin vertailuilmoituksiin perustuva hintapyyntö, ilmoitusteksti sekä paikalliset tallennukset toimivat ilman palvelinta.
+1. Tuotteen nimi ja tuoteryhmä.
+2. Kuntoluokka ja vapaaehtoinen kuvaus.
+3. Ikä ja saman mallin hinta uutena.
+4. Tavoite: myynti, nopea kauppa tai vaihto.
+5. Oma hankintahinta ja mahdolliset myyntikulut (valinnaiset).
+6. Tarkistus ja laskennallinen hintapyyntö, kulut, voitto/tappio sekä ilmoitusteksti.
 
-**Automaattista kuvantunnistusta ja verkkohakua ei ole vielä aktivoitu tuotantoon.** Niiden toteutus on `server/`-kansiossa. Aktivointi vaatii julkaistun Node-palvelimen ja palvelimelle asetetun OpenAI API-avaimen. Käyttöliittymä ilmoittaa puuttuvasta palvelusta ja tarjoaa omien vertailuilmoitusten lisäämisen. Se ei näytä keksittyä AI-analyysiä.
+Tietoja kysytään yksi vaihe kerrallaan. Vaihtolaskuri vertaa käyttäjän antamaa vaihtokohteen jälleenmyyntiarviota, myyntikuluja, palkkiota ja välirahaa suoraan myyntiin. Markkinapaikkalinkit avaavat ulkoisen sivun vain painettaessa.
 
-## Kehitys
+## Mitä arvio tarkoittaa
 
-Node.js 22.9+ (suositus 22 LTS).
+Hintapyyntö = käyttäjän antama uushinta × tuoteryhmän lähtökerroin × exp(−arvonalenemiskerroin × ikä vuosina) × kuntokerroin × tavoitekerroin.
+
+Kertoimet ovat tämän työkalun **suunnitteluoletuksia**, eivät markkinadatasta opittuja lukuja. Niiden tarkat arvot ovat `src/valuation.js`-tiedostossa, ja laskentaperusteet näytetään käyttäjälle. Nopean kaupan kerroin on 0,9, muiden 1. Esitetty vaihteluväli on malliin valittu vaihtelu, ei tilastollinen luottamusväli. Todellinen kauppahinta voi poiketa siitä huomattavasti.
+
+Tuotteen nimeä tai vapaata kuvausta ei tulkita hinnan määrittämiseksi. Vapaa kuvaus siirtyy ilmoitustekstiin. Harvinaisuutta, mallikohtaista kysyntää, sesonkihintoja tai uusia myynti-ilmoituksia ei haeta. Keräilylle, antiikille ja taiteelle ei anneta numeerista hinta-arviota yleisellä mallilla. Viallisen tuotteen arvo voi olla nolla. Voittolaskelma ei sisällä veroja tai oman työn hintaa.
+
+## Tallennukset
+
+Luonnos tallentuu localStorageen ja erikseen tallennetut arviot IndexedDB:hen tässä selaimessa. Tuotetietoja ei lähetetä palvelimelle. Edellisen version tallennetut tuotteet voidaan avata tietojen täydentämistä varten; niiden kuvia ei näytetä eikä käytetä. Selaimen tietojen poistaminen poistaa paikalliset tallennukset.
+
+## Kehitys ja julkaisu
 
 ```sh
 npm ci
 npm run dev
-```
-
-Palvelimen käynnistys toisessa terminaalissa:
-
-```sh
-npm run server
-```
-
-Vite välittää `/api`-pyynnöt paikalliseen porttiin 8787. Ilman avainta `/api/health` palauttaa `ready: false` ja käyttöliittymä tarjoaa käsin täytettävää hintavertailua.
-
-## Automaattisen analyysin käyttöönotto
-
-1. Julkaise tämä repositorio Node.js-palveluna valitsemassasi hosting-palvelussa. Build: `npm ci && npm run build`. Start: `node server/index.js`. Aseta `HOST=0.0.0.0` ja palvelun vaatima `PORT`.
-2. Lisää `OPENAI_API_KEY` hosting-palvelun **salaisiin ympäristömuuttujiin**. Älä lisää sitä GitHub-repoon, selaimeen tai `VITE_`-muuttujaan. Mallin oletus on `gpt-5.4-mini`, vaihdettavissa `OPENAI_MODEL`-muuttujalla.
-3. Aseta `ALLOWED_ORIGINS` sisältämään tarkka selainosoitteen origin, esimerkiksi `https://latemake.github.io`. Jos koko sivusto toimii samalla Node-palvelimella, lisää sen oma origin listaan.
-4. Jos käyttöliittymä jää GitHub Pagesiin, aseta build-ympäristöön `VITE_ANALYSIS_API=https://oma-palvelin.example/api`, aja `npm run build:pages` ja puske muutokset GitHubiin. Samalta Node-palvelimelta tarjottu käyttöliittymä käyttää `/api`-polkua automaattisesti.
-5. Varmista `/api/health` ja tee oikealla tuotteella kuvatunnistus sekä lähteistetty hintahaku. Aitoa API-kutsua ei ole vielä voitu testata ilman avainta.
-
-Esimerkkiasetukset `.env.example`-tiedostossa. Paikallinen `.env` luetaan palvelimen käynnistyessä, ja Git ohittaa sen.
-
-## Analyysin periaatteet
-
-- Tuotteen nimi tunnistetaan kuvasta ja vahvistetaan käyttäjällä.
-- OpenAI Responses API hakee julkisia verkkolähteitä. Facebookin kirjautumisen takaisia ilmoituksia tai kaikkia Torin ilmoituksia ei voida luvata saataville. Ei kirjautumisen ohittamista eikä suoraviivaista markkinapaikkaskrapausta.
-- Numeeriseen vertailuun hyväksytään vain lähdehaussa esiintyneen URL:n omaavat, saman mallin ja vastaavan kunnon EUR-pyyntihinnat. Lähde-URL:n tarkistus vähentää keksittyjä linkkejä; se ei yksin takaa tekoälyn poimiman hinnan oikeellisuutta. Käyttäjä voi tarkistaa lähteen.
-- Hintapyyntö on vähintään kolmen vertailun mediaani. Nopean kaupan vaihtoehto vähentää mediaanista 10 %. Tämä on avoin hinnoittelusääntö, ei myyntihintaennuste. Ilman riittäviä vertailuja ei anneta hintaa.
-- Voitto on hintapyyntö miinus myyntikulut, prosenttipalkkio ja hankintahinta. Tuntematonta hankintahintaa ei käsitellä nollana. Verot ja oman työn hinta eivät sisälly.
-- Vaihtokohteet ovat lähteistettyjä myynti-ilmoituksia. Myyjän vaihtohalukkuutta, välirahaa ja voittoa ei oleteta vahvistetuiksi. Ilman lähteitä ei näytetä keksittyjä tradeja.
-
-## Tiedot ja käyttörajat
-
-Kuvat pienennetään selaimessa ja tallennukset säilyvät IndexedDB:ssä tällä laitteella. Analyysipalvelu ei kirjoita kuvia levylle tai tietokantaan; OpenAI-kutsuissa käytetään `store:false`. Tämä ei ole lupaus kolmannen osapuolen nollasäilytyksestä. Käyttäjälle näytetään tiedonsiirto ennen tunnistusta.
-
-Palvelimessa on pyyntökoon rajoitus, CORS-allowlist ja prosessikohtainen käyttöraja. `ANALYSIS_DAILY_LIMIT` on oletuksena 100 pyyntöä prosessia kohti vuorokaudessa. Se nollautuu prosessin uudelleenkäynnistyksessä eikä ole hajautettu rahankäyttöraja. Ennen avointa laajaa käyttöä kytke palveluntarjoajan käyttöbudjetti sekä pysyvä, instanssien yhteinen käyttörajoitus tai käyttäjäkirjautuminen. `TRUST_PROXY=true` vain jos hosting-palvelin ylikirjoittaa asiakkaan lähettämät IP-headerit luotettavasti.
-
-## Tarkistukset ja julkaisu
-
-```sh
 npm test
-npm run build
 node scripts/browser-check.mjs
 npm run build:pages
 ```
 
-Selaintesti tarvitsee käynnissä olevan Viten sekä Playwright Chromiumin (`npx playwright install chromium`). Se testaa kuvavalinnan, lomakkeen, luonnoksen jatkamisen, hintalaskennan, tallennukset ja mobiilin. AI-palvelun vastaukset korvataan testissä testivastauksilla; nämä eivät sisälly julkisen sovelluksen aineistoon. Oikean ulkoisen API:n testi on erikseen tehtävä käyttöönotossa.
+Selaintesti tarvitsee käynnissä olevan Viten ja Playwright Chromiumin (`npx playwright install chromium`). Se testaa koko lomakkeen ilman verkkoyhteyttä ja varmistaa, ettei sovellus tee API-kutsuja. Tuotantotarkistuksen osoitteen voi antaa `FLIPGAIN_TEST_URL`-ympäristömuuttujalla.
 
-GitHub Pages julkaisee `main`-haaran `docs`-kansion. Aja `npm run build:pages`, lisää lähdekoodi ja `docs` Git-commitiin ja puske `main` GitHubiin.
-
-Toteutuksen API-lähteet: [kuvasyötteet](https://developers.openai.com/api/docs/guides/images-vision), [verkkohaku](https://developers.openai.com/api/docs/guides/tools-web-search), [rakenteinen vastaus](https://developers.openai.com/api/docs/guides/structured-outputs).
+GitHub Pages julkaisee `main`-haaran `docs`-kansion. Aja `npm run build:pages` ja puske lähdekoodin sekä `docs`-kansion muutokset. Taustapalvelua ei tarvita. Kaikki fontit ovat laitteen omia, eikä ulkoisia fontti- tai analytiikkapalveluja kutsuta.

@@ -1,29 +1,65 @@
-export const conditions = { new: 'Uudenveroinen', good: 'Hyvä', fair: 'Käytön jälkiä', poor: 'Viallinen / korjattava' };
-export const goals = { profit: 'Paras hinta', quick: 'Nopea kauppa', trade: 'Vaihtokauppa' };
-export function money(value) {
-  return new Intl.NumberFormat('fi-FI', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
+export const conditions={new:'Uudenveroinen',good:'Hyvä',fair:'Kulunut mutta toimiva',poor:'Viallinen / korjattava'};
+export const goals={profit:'Paras hinta',quick:'Nopea kauppa',trade:'Vaihtokauppa'};
+// These are deliberately broad product-planning assumptions, not market statistics.
+export const categories={
+  electronics:{label:'Elektroniikka',retention:.78,decay:.20,spread:.30},
+  furniture:{label:'Huonekalut ja sisustus',retention:.65,decay:.07,spread:.35},
+  tools:{label:'Työkalut ja koneet',retention:.75,decay:.09,spread:.30},
+  sports:{label:'Urheilu ja harrastukset',retention:.70,decay:.12,spread:.30},
+  clothing:{label:'Vaatteet ja asusteet',retention:.50,decay:.12,spread:.40},
+  other:{label:'Muu käyttöesine',retention:.60,decay:.12,spread:.40},
+  collectible:{label:'Keräily, antiikki tai taide',unsupported:true},
+};
+export const conditionFactors={new:1,good:.85,fair:.60,poor:.15};
+export function money(value){return new Intl.NumberFormat('fi-FI',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format(value);}
+const round=value=>Math.round((value+Number.EPSILON)*100)/100;
+function number(value,label,{optional=false,max=1_000_000}={}){
+  if(value===''||value===undefined||value===null){if(optional)return null;throw new Error(`${label} puuttuu.`);}
+  const parsed=Number(value);if(!Number.isFinite(parsed)||parsed<0||parsed>max)throw new Error(`Tarkista ${label.toLowerCase()}.`);return parsed;
 }
-export function safeUrl(value) {
-  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password ? url.href : null; } catch { return null; }
+export function estimate(product){
+  const category=Object.hasOwn(categories,product.category)?categories[product.category]:null;
+  if(!category||!Object.hasOwn(conditionFactors,product.condition)||!Object.hasOwn(goals,product.goal))throw new Error('Valitse tuoteryhmä, kunto ja tavoite.');
+  const buy=number(product.buy,'Hankintahinta',{optional:true});
+  const expenses=number(product.expenses??0,'Myyntikulut');
+  const fee=number(product.fee??0,'Välityspalkkio',{max:99.9});
+  const basis={buy,expenses,fee,version:3};
+  if(category.unsupported)return {...basis,sufficient:false,reason:'Keräilyesineen, antiikin tai taiteen arvoa ei voi päätellä uushinnasta ja iästä. Tarkista saman esineen toteutuneet kaupat tai pyydä asiantuntijan arvio.'};
+  const reference=number(product.referencePrice,'Hinta uutena');
+  if(reference<=0)throw new Error('Hinnan uutena pitää olla suurempi kuin nolla.');
+  const age=number(product.age,'Ikä',{max:100});
+  const ageFactor=Math.exp(-category.decay*age);
+  const factor=category.retention*ageFactor*conditionFactors[product.condition];
+  const typical=round(reference*factor);
+  const low=round(typical*(1-category.spread)),high=round(Math.min(reference,typical*(1+category.spread)));
+  const ask=round(typical*(product.goal==='quick'?.9:1));
+  const net=round(ask*(1-fee/100)-expenses);
+  const lowNet=round(low*(1-fee/100)-expenses);
+  return {...basis,sufficient:true,reference,age,typical,low,high,ask,net,lowNet,profit:buy===null?null:round(net-buy),lowProfit:buy===null?null:round(lowNet-buy),breakEven:buy===null?null:round((buy+expenses)/(1-fee/100)),factor,ageFactor};
 }
-export function median(values) {
-  const sorted = [...values].sort((a,b) => a-b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
+export function assessTrade(valuation,{resale,cash=0,direction='pay',costs=0,fee=0}){
+  if(!valuation.sufficient)throw new Error('Laske ensin oman tuotteesi arvio.');
+  const target=number(resale,'Vaihtotuotteen jälleenmyyntiarvio');
+  const extra=number(cash,'Väliraha'),expenses=number(costs,'Vaihtotuotteen myyntikulut');
+  const percentage=number(fee,'Vaihtotuotteen välityspalkkio',{max:99.9});
+  if(!['pay','receive'].includes(direction))throw new Error('Valitse välirahan suunta.');
+  const net=round(target*(1-percentage/100)-expenses+(direction==='receive'?extra:-extra));
+  return {net,advantage:round(net-valuation.net),profit:valuation.buy===null?null:round(net-valuation.buy),maxCash:round(target*(1-percentage/100)-expenses-valuation.net)};
 }
-export function valueProduct(product, comparables = []) {
-  const buy = product.buy === '' || product.buy == null ? null : Number(product.buy);
-  const expenses = Number(product.expenses || 0);
-  const fee = Number(product.fee || 0);
-  if ((buy !== null && (!Number.isFinite(buy) || buy < 0)) || !Number.isFinite(expenses) || expenses < 0 || !Number.isFinite(fee) || fee < 0 || fee >= 100) throw new Error('Tarkista kulut. Palkkion on oltava alle 100 %.');
-  const usable = comparables.filter(c => Number.isFinite(c.price) && c.price > 0 && c.price <= 1000000 && c.currency === 'EUR' && c.comparable === true);
-  if (usable.length < 3) return { sufficient: false, comparables: usable, needed: 3 - usable.length, buy, expenses, fee };
-  const typical = median(usable.map(c => c.price));
-  // A transparent asking-price strategy, not a predicted transaction price.
-  const ask = Math.max(1, Math.round(typical * (product.goal === 'quick' ? .9 : 1)));
-  const net = ask * (1-fee/100) - expenses;
-  return { sufficient: true, comparables: usable, typical, ask, low: Math.min(...usable.map(c=>c.price)), high: Math.max(...usable.map(c=>c.price)), net, profit: buy === null ? null : net-buy, buy, expenses, fee, breakEven: buy === null ? null : (buy+expenses)/(1-fee/100) };
+export function guidance(product){
+  const risks=[];
+  let ease;
+  if(product.condition==='poor'){ease='Korjaustarve voi rajata ostajia. Selvitä vika ja varaosien saatavuus ennen hinnan päättämistä.';risks.push('Kerro viasta täsmällisesti. Korjattavan tuotteen todellinen arvo voi olla myös nolla.');}
+  else if(product.category==='furniture'){ease='Noudon ja kuljetuksen järjestäminen voi vaikuttaa kauppaan enemmän kuin pieni hinnanalennus.';}
+  else{ease='Toimivuuden osoittaminen, selkeä kuvaus ja sopiva toimitustapa helpottavat ostajan päätöstä. Mallikohtainen kysyntä ei ole tiedossa.';}
+  if(product.category==='electronics')risks.push('Tarkista toiminta, akun kunto, mahdolliset käyttäjälukitukset ja mukana tulevat laturit.');
+  if(product.category==='clothing')risks.push('Ilmoita mitat, materiaalit, tahrat ja kulumat. Merkkituotteessa myös aitouden osoittaminen auttaa.');
+  if(product.category==='sports')risks.push('Huomioi sesonki, koko ja turvallisuuteen vaikuttavat kulumat.');
+  if(product.category==='tools')risks.push('Testaa toiminta ja huomioi akkujen, terien sekä muiden kulutusosien kunto.');
+  if(product.category==='furniture')risks.push('Lisää mitat, materiaalit ja tieto purkamisesta. Varmista noutoon sopiva kuljetus.');
+  risks.push('Vertaa saman mallin ilmoituksia ennen julkaisua. Nimi tai vapaa kuvaus ei käynnistä markkinahakua.');
+  return {ease,risks};
 }
-export function draftListing(product, valuation) {
-  return [product.name, '', `Kunto: ${conditions[product.condition] || product.condition}.`, product.details, product.location ? `Sijainti: ${product.location}.` : '', valuation.sufficient ? `Hintapyyntö: ${money(valuation.ask)}.` : '', product.goal === 'trade' ? `Myös vaihto kiinnostaa${product.tradeInterest ? ': '+product.tradeInterest : ''}.` : ''].filter(line => line !== undefined).join('\n').trim();
+export function draftListing(product,valuation){
+  return [product.name,'',`Kunto: ${conditions[product.condition]}.`,product.details||'',product.age!==''?`Ikä noin ${product.age} vuotta.`:'',valuation.sufficient?`Hintapyyntö: ${money(valuation.ask)}.`:'',product.goal==='trade'?'Myös vaihtoa voi ehdottaa.':''].join('\n').trim();
 }
