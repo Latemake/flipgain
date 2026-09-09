@@ -1,0 +1,7 @@
+node_modules/
+dist/
+desktop-preview.png
+mobile-preview.png
+.env
+.env.*
+!.env.example

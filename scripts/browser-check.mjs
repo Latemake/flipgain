@@ -1,0 +1,36 @@
+import { chromium } from '@playwright/test';
+import assert from 'node:assert/strict';
+const browser = await chromium.launch();
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(process.env.FLIPGAIN_TEST_URL || 'http://127.0.0.1:5173/');
+  assert.equal(await page.locator('h1').innerText(), 'Näe tuotteesi potentiaali.');
+  await page.locator('[data-example="0"]').click();
+  assert.match(await page.locator('.profit-number').innerText(), /48/);
+  await page.locator('#save-result').click();
+  await page.locator('[data-view="saved"]').click();
+  assert.equal(await page.locator('.saved-card').count(), 1);
+  await page.reload();
+  await page.locator('[data-view="saved"]').click();
+  assert.equal(await page.locator('.saved-card').count(), 1);
+  await page.locator('[data-load]').click();
+  await page.locator('[name="sale"]').fill('70');
+  assert.equal(await page.locator('#save-result').isDisabled(), true);
+  await page.locator('button[type="submit"]').click();
+  assert.match(await page.locator('.profit-number').innerText(), /22/);
+  assert.equal(await page.locator('.profit-number.negative').count(), 1);
+  await page.locator('[data-view="saved"]').click();
+  await page.locator('[data-delete]').click();
+  assert.equal(await page.locator('.saved-card').count(), 0);
+  await page.locator('[data-view="overview"]').click();
+  await page.screenshot({ path: 'desktop-preview.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.screenshot({ path: 'mobile-preview.png', fullPage: true });
+  await page.locator('[data-view="analyze"]').click();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  assert.deepEqual(errors, []);
+  console.log('Browser checks passed: analysis, loss, save, reload, delete, mobile overflow, no runtime errors.');
+} finally { await browser.close(); }
