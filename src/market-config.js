@@ -1,3 +1,3 @@
 // Public endpoint only. No API key is used or shipped to the browser.
-// Set after a permanent Free-plan deployment has been verified. Preview accounts expire.
-export const publishedMarketEndpoint='';
+// Permanent deployment on the owner's account; no temporary preview account.
+export const publishedMarketEndpoint='https://flipgain-prices.nimbleninja2011.workers.dev';

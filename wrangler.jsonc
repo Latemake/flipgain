@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "flipgain-prices",
+  "account_id": "5a584870ea10bccbd33d5e9cbb80ea61",
   "main": "server/worker.js",
   "compatibility_date": "2026-09-09",
   "workers_dev": true,
