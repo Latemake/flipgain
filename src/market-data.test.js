@@ -1,8 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {matchesModel,marketSummary,MARKET_TTL} from './market-data.js';
+import {matchesModel,marketSummary,MARKET_TTL,searchName} from './market-data.js';
 import {estimate} from './valuation.js';
-import {parseHuuto,parseTori,fetchMarket} from '../server/market.js';
+import {parseHuuto,parseTori,fetchMarket,searchUrls} from '../server/market.js';
 import worker from '../server/worker.js';
 const now=Date.parse('2026-09-09T19:00:00Z');
 const row=(id,price,type='asking')=>({id:String(id),price,type,title:'Kukirin G2 Pro',source:type==='asking'?'Tori':'Huuto.net',url:type==='asking'?`https://www.tori.fi/recommerce/forsale/item/${id}`:`https://www.huuto.net/kohteet/test/${id}`});
@@ -31,13 +31,34 @@ test('live valuation preserves market price, costs and requires current evidence
   const r=estimate(p,{now});assert.equal(r.ask,320);assert.equal(r.net,294);assert.equal(r.profit,94);
   assert.throws(()=>estimate({...p,liveConfirmed:''},{now}));assert.throws(()=>estimate({...p,name:'iPhone 13'},{now}));assert.throws(()=>estimate({...p,marketSelected:[]},{now}));
 });
-test('Tori parser excludes retailers and verifies selected condition filters',()=>{
+test('Tori parser excludes retailers but does not discard unclassified conditions',()=>{
   const doc={id:1,heading:'Kukirin G2 Pro',flags:['private'],trade_type:'Myydään',price:{amount:390,currency_code:'EUR'},canonical_url:'https://www.tori.fi/recommerce/forsale/item/1'};
   const data={docs:[doc,{...doc,id:2,flags:['retailer']},{...doc,id:3,heading:'Kukirin G2 Pro akku'}],filters:[{name:'condition',filter_items:['2','3','4'].map(value=>({value,selected:true}))}]};
   const html=()=>`<script type="application/json" data-react-query-state>${Buffer.from(JSON.stringify({queries:[{state:{data}}]})).toString('base64')}</script>`;
   assert.equal(parseTori(html(),'kukirin g2 pro','fair').items.length,1);
-  data.filters=[];assert.throws(()=>parseTori(html(),'kukirin g2 pro','fair'),/kuntosuodatusta/);
+  data.filters=[];assert.equal(parseTori(html(),'kukirin g2 pro','new').items.length,1);
+  assert.match(parseTori(html(),'kukirin g2 pro','new').items[0].condition,/ei vahvistettu/);
   assert.throws(()=>parseTori('<html>blocked</html>','kukirin g2 pro','fair'));
+});
+test('short scooter names resolve explicitly, spelling variants match without accepting unrelated G2 products',()=>{
+  for(const q of ['g2pro','G2 Pro','g2-pro','Ku Kirin G2Pro']){
+    assert.equal(searchName(q).toLowerCase(),'kukirin g2 pro');
+    assert.ok(matchesModel('Kukirin G2Pro',q,'good'));
+    assert.ok(matchesModel('Kugoo G2 Pro',q,'good'));
+    assert.equal(matchesModel('HP EliteBook 840 G2 Windows 11 Pro',q,'good'),false);
+    assert.equal(matchesModel('Warrior Ritual G2 PRO',q,'good'),false);
+  }
+  for(const url of searchUrls('Kukirin G2 Pro','new'))assert.equal(url.searchParams.has('condition'),false);
+});
+test('expanded Tori lookup deduplicates spellings and reads a bounded second page',async()=>{
+  const calls=[];
+  const result=await fetchMarket('G2Pro','fair',{now,fetcher:async url=>{
+    calls.push(String(url));if(url.hostname!=='www.tori.fi')return Response.json({items:[],totalCount:0});
+    const second=url.searchParams.get('page')==='2';
+    const data={docs:[{id:second?2:1,heading:'KuKirin G2Pro',flags:['private'],trade_type:'Myydään',price:{amount:second?320:390,currency_code:'EUR'},canonical_url:`https://www.tori.fi/recommerce/forsale/item/${second?2:1}`}],metadata:{paging:{current:second?2:1,last:3}}};
+    return new Response(`<script data-react-query-state>${Buffer.from(JSON.stringify({queries:[{state:{data}}]})).toString('base64')}</script>`);
+  }});
+  assert.equal(result.query,'G2Pro');assert.equal(result.searchedAs,'Kukirin G2 Pro');assert.equal(result.items.length,2);assert.equal(calls.length,6);assert.equal(result.sources[0].truncated,true);
 });
 test('partial source failures are explicit, no fake prices on failure',async()=>{
   const r=await fetchMarket('kukirin g2 pro','fair',{now,fetcher:async url=>{if(url.hostname==='www.tori.fi')throw Error('unavailable');return Response.json({items:[],totalCount:0});}});

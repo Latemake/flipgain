@@ -1,10 +1,15 @@
 export const MARKET_TTL = 15 * 60 * 1000;
 export const priceTypes = {asking:'Pyyntihinta', auction:'Päättyneen huutokaupan voittava tarjous'};
 export const cleanQuery = value => String(value || '').normalize('NFKC').trim().replace(/\s+/g, ' ');
-const words = value => cleanQuery(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/(\d)\s+(gb|tb)\b/g,'$1$2').replace(/g\s+(\d)/g,'g$1').replace(/(g\d)(pro|max|master|ultra)/g,'$1 $2').match(/[a-z0-9]+/g) || [];
+export function searchName(value){
+  let name=cleanQuery(value).replace(/\b(?:ku\s*kirin|kugoo\s*kirin)\b/ig,'Kukirin').replace(/\bg\s*2\s*[- ]?\s*pro\b/ig,'G2 Pro');
+  if(/^g2 pro$/i.test(name))name='Kukirin G2 Pro';
+  return name;
+}
+const words = value => cleanQuery(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\b(?:ku\s*kirin|kugoo\s*kirin|kugoo)\b/g,'kukirin').replace(/(\d)\s+(gb|tb)\b/g,'$1$2').replace(/g\s+(\d)/g,'g$1').replace(/(g\d)(pro|max|master|ultra)/g,'$1 $2').match(/[a-z0-9]+/g) || [];
 // Conservative title matching; the user must still check condition and configuration.
 export function matchesModel(title, query, condition) {
-  const t = words(title), q = words(query);
+  const t = words(title), q = words(searchName(query));
   if(q.length < 2 || !q.every(w => t.includes(w))) return false;
   const variants = ['pro','max','mini','plus','ultra','master','lite','air'];
   if(variants.some(w=>t.includes(w) && !q.includes(w))) return false;

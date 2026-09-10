@@ -1,5 +1,5 @@
 import {fetchMarket} from './market.js';
-import {cleanQuery} from '../src/market-data.js';
+import {cleanQuery,searchName} from '../src/market-data.js';
 export default {
   async fetch(request,env={},ctx={waitUntil:()=>{}}) {
     const url=new URL(request.url),origin=request.headers.get('Origin');
@@ -13,10 +13,10 @@ export default {
     if(request.method!=='GET')return reply({error:'Vain GET on sallittu.'},405);
     if([...url.searchParams.keys()].some(k=>!['q','condition'].includes(k)))return reply({error:'Tuntematon hakuehto.'},400);
     const query=cleanQuery(url.searchParams.get('q')),condition=url.searchParams.get('condition');
-    if(query.length<3||query.length>140||query.split(' ').length<2||/[\u0000-\u001f<>]/.test(query)||!['new','good','fair','poor'].includes(condition))return reply({error:'Anna merkki ja tarkka malli sekä kunto.'},400);
-    // Only three fixed marketplace requests; never accept arbitrary URLs or credentials.
+    if(query.length<3||query.length>140||searchName(query).split(' ').length<2||/[\u0000-\u001f<>]/.test(query)||!['new','good','fair','poor'].includes(condition))return reply({error:'Anna merkki ja tarkka malli sekä kunto.'},400);
+    // Bounded requests to fixed marketplace hosts; never accept arbitrary URLs or credentials.
     const cache=globalThis.caches?.default;
-    const cacheUrl=new URL('/api/market',url.origin);cacheUrl.searchParams.set('q',query.toLowerCase());cacheUrl.searchParams.set('condition',condition);
+    const cacheUrl=new URL('/cache/market-v2',url.origin);cacheUrl.searchParams.set('q',query.toLowerCase());cacheUrl.searchParams.set('condition',condition);
     const key=new Request(cacheUrl);
     try {
       const cached=await cache?.match(key);
