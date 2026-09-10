@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:pages": "npm run build && node scripts/build-pages.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test"
+    "test": "node --test",
+    "test:browser": "node scripts/browser-check.mjs && node scripts/market-browser-check.mjs",
+    "dev:market": "wrangler dev --port 8787",
+    "deploy:market": "wrangler deploy"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +19,10 @@
   "type": "module",
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "wrangler": "^4.130.0"
+  },
+  "overrides": {
+    "sharp": "0.35.4"
   }
 }

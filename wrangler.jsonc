@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flipgain-prices",
+  "main": "server/worker.js",
+  "compatibility_date": "2026-09-09",
+  "workers_dev": true,
+  "observability": { "enabled": false },
+  "vars": { "ALLOWED_ORIGINS": "https://latemake.github.io,http://localhost:5173,http://127.0.0.1:5173" }
+}

@@ -1,45 +1,57 @@
 # Flipgain
 
-Sivusto: https://latemake.github.io/flipgain/
+Suomenkielinen, puhelimelle sopiva myynti- ja vaihtolaskuri. GitHub Pages julkaisee käyttöliittymän, Cloudflare Worker hakee hintavertailut. Tekoälyä, API-krediittejä, maksullisia hakupalveluja tai käyttäjätiliä ei tarvita.
 
-Selaimessa toimiva suomenkielinen myynti- ja vaihtolaskuri. Ei kuvia, taustapalvelinta, API-avaimia tai tekoälykutsuja. Laskenta toimii myös ilman verkkoyhteyttä sivun lataamisen jälkeen.
+## Hintahaku
 
-## Hinnoittelun korjaus
+Käyttäjä antaa merkin ja mallin, kuntoluokan sekä halutessaan kuvauksen. Hinnoitteluvaiheessa **Hae hintatiedot** tekee enintään kolme lähdepyyntöä:
 
-Yleinen uushintaan, ikään ja kuntoluokkaan perustuva kaava ei tuottanut riittävää tuotekohtaista hintasuositusta. Se saattoi esimerkiksi aliarvioida KuKirin G2 Pron. Sitä ei enää käytetä automaattisesti.
+- Tori: julkisen hakusivun yksityismyyjien pyyntihinnat. Uudet kauppatuotteet, varaosat ja otsikossa poikkeavat malliversiot suodatetaan. Hyvälle tai kuluneelle tuotteelle etsitään kuntoja ”kuin uusi”, ”hyvä” ja ”kohtalainen”; käyttäjän täytyy tarkistaa ilmoituksen todellinen kunto.
+- Huuto.net: julkisen API:n kiinteät pyyntihinnat sekä viimeisen 90 päivän päättyneet huutokaupat valitussa kuntoluokassa. Huutokauppa hyväksytään vain, kun tarjoajia on, sulkemisaika on menneisyydessä ja mahdollinen hintavaraus on ylittynyt. Voittava tarjous ei todista maksua.
+- Facebook Marketplace: vain hakulinkki; ei automaattista hintahakua tai väitettä toteutuneista myyntihinnoista.
 
-Hintaperuste valitaan erikseen:
+Lähteistä tarkistetaan rajattu hakutulossivu. Koko markkinan kattavuutta tai tiettyä myyntiaikaa ei väitetä. Torin palvelin voi estää pilvestä tehtävän haun (Cloudflare-testissä saatiin HTTP 403), vaikka paikallinen haku toimii. Lähteen häiriö näytetään erikseen; muiden lähteiden tulokset säilyvät. Suojauksia ei kierretä ulkoisilla välityspalveluilla.
 
-1. **Tallennettu mallikohtainen vertailu.** Julkinen yksittäinen myynti-ilmoitus, lähde ja tarkastuspäivä. Käyttäjä vahvistaa version ja kunnon vertailukelpoisuuden. Kyse on pyyntihinnasta, ei toteutuneesta kaupasta tai markkinamediaanista.
-2. **Käyttäjän tieto vastaavan käytetyn hinnasta.** Esimerkiksi käyttäjän antamasta 320 eurosta ei enää vähennetä uushintakaavan ikä- ja kuntokertoimia uudelleen. Tämä on käyttäjän oletus, ei sivuston itsenäisesti vahvistama hinta.
-3. **Vain karkea laskelma.** Erikseen valittava vanha arvonalenemiskaava. Tulos on selvästi merkitty yleiskaavan tulokseksi, ei tuotekohtaiseksi hintasuositukseksi. Keräilylle, antiikille ja taiteelle yleiskaava ei anna hintaa.
+Käyttäjä tarkistaa vertailut, poistaa väärät versiot tai kunnot ja vahvistaa sopivuuden. Arvion lähtötaso on valittujen hintojen mediaani. Vähintään kolme voittavaa tarjousta asetetaan pyyntihintojen edelle; muulloin käytetään pyyntöjä tai niiden puuttuessa saatavilla olevia voittavia tarjouksia. Ryhmiä ei yhdistetä keskiarvoksi. Alle kolmesta havainnosta varoitetaan. Yksittäinen ilmoitus on hyvin epävarma lähtötaso. Nopean kaupan tavoitteessa käyttäjä valitsee 10 prosentin alennuksen; se ei ole mitattu tinkimisvara tai lupaus myyntinopeudesta.
 
-Nopean kaupan tavoite alentaa valittua lähtöhintaa 10 %. Tämä on hinnoittelustrategia, ei lupaus myyntinopeudesta. Nettotuotto vähentää annetut kulut ja palkkion. Voitto vähentää myös hankintahinnan; tuntematon hankintahinta ei ole nolla. Veroja ja oman työn arvoa ei huomioida.
+Vapaata kuvausta, akun kuntoa tai kilometrejä ei hinnoitella tekoälyllä. Hintaa ei alenneta toistamiseen yleisellä kuntokertoimella. Muut hintaperusteet säilyvät erillisessä avattavassa osiossa: oma markkinahinta, rajatuille malleille tallennettu lähde ja nimenomaisesti valittu karkea yleiskaava.
 
-## Vertailuaineiston rajaus
+## Maksuttomuus ja julkaisu
 
-`src/market-references.js` sisältää tällä hetkellä **yhden suomalaisen KuKirin G2 Pro -vertailuilmoituksen**, ei kattavaa tuotetietokantaa. [Nettimoto-ilmoituksen](https://www.nettimoto.com/kugoo/wish-01/3422985) pyyntihinta oli tarkasteltaessa 349 €. Tieto tallennettiin 9.9.2026. Ilmoituksen saatavuutta ei tarkisteta automaattisesti sivustoa käytettäessä.
+Käytä vain **Cloudflare Workers Free** -tilausta. Siinä on 100 000 pyyntöä päivässä ja 10 ms CPU-raja. Ilmaisrajan täyttyminen keskeyttää palvelun; tämä projekti ei tilaa maksullista pakettia. AI-, KV-, D1-, R2-, selainrenderöinti- tai muita maksullisia sidoksia ei käytetä. Workersin Cache API säilyttää onnistuneita hakuja 15 minuuttia. Lähteiden omat saatavuus- ja käyttörajat voivat muuttua.
 
-Vertailua ei ehdoteta eri G2-mallille, varaosille, eri nimessä ilmoitetulle vuosimallille tai vialliseksi merkitylle tuotteelle. Vertailu vanhenee 30 päivän jälkeen, jolloin hintaperuste on valittava uudelleen. Tieto on staattisesti mukana julkaisussa, joten ylläpitäjän täytyy tarkistaa ja julkaista päivitykset. Muille malleille ei väitetä löytyneen hintatietoa.
+- [Workers Free -hinnoittelu](https://developers.cloudflare.com/workers/platform/pricing/)
+- [Workersin rajat](https://developers.cloudflare.com/workers/platform/limits/)
+- [Huuto.net API](https://dev.huuto.net/methods.html)
+- [Huuto.net API -ehdot](https://dev.huuto.net/api_terms_of_use.html)
 
-Vapaata kuvausta ei tulkita tekoälyllä eikä esimerkiksi lommoa, ajomäärää, akun kuntoa tai vaihdettuja jarrupaloja muuteta automaattisesti euroiksi. Käyttäjän on arvioitava vertailun sopivuus. Tiedossa oleva hintataso koskee käyttäjän omaa tuotetta nykyisessä kunnossa. Nimen, tuoteryhmän tai kuntoluokan muuttaminen tyhjentää vanhan hintaperusteen, jotta toisen tuotteen hinta ei siirry vahingossa mukaan.
-
-## Käyttö ja tallennus
-
-Tuote, kunto ja hintaperuste kysytään vaiheittain. Uushintaa ja ikää kysytään vain erikseen valittua yleiskaavaa varten. Tuloksessa näkyvät lähtötieto, nettotuotto, vaihtotarjouksen laskuri ja kopioitava ilmoitusteksti.
-
-Luonnos tallentuu localStorageen ja erikseen tallennetut arviot IndexedDB:hen. Tietoja ei lähetetä palvelimelle. Edellisen hinnoitteluversion tallennukset avataan uuden hintaperusteen valintaan, eivät suoraan vanhaan hintaehdotukseen. Markkinapaikkalinkit avaavat ulkoisen palvelun vain painettaessa.
-
-## Kehitys ja julkaisu
+Pysyvään käyttöönottoon tarvitaan ylläpitäjän maksuton Cloudflare-tili ja kirjautuminen. Väliaikainen `wrangler deploy --temporary` -julkaisu poistetaan, ellei omistajuutta oteta 60 minuutissa; sitä ei pidä pitää pysyvänä julkaisuna. Julkaistu Worker-osoite tallennetaan tiedostoon `src/market-config.js`. Sen pitää vastata todellista toimivaa julkaisua. Tyhjä osoite piilottaa hakutoiminnon tuotantoversiosta, kunnes pysyvä palvelu on käytettävissä.
 
 ```sh
 npm ci
-npm run dev
-npm test
-node scripts/browser-check.mjs
+npx wrangler login
+npm run deploy:market
+# Päivitä src/market-config.js julkaisun palauttamalla osoitteella.
 npm run build:pages
 ```
 
-Selaintesti tarvitsee käynnissä olevan Viten ja Playwright Chromiumin (`npx playwright install chromium`). Testit tarkistavat myös 320 €:n käyttäjähinnan säilymisen, 349 €:n lähteen alkuperän, väärien mallien ja vanhentuneiden lähteiden hylkäyksen sekä verkkokutsuttoman käyttöpolun. Julkisen sivuston testi käyttää `FLIPGAIN_TEST_URL`-ympäristömuuttujaa.
+GitHub Pages julkaisee main-haaran docs-kansion. Puske lähdekoodi ja generoitu docs yhdessä. Worker päivitetään erikseen komennolla `npm run deploy:market`. Mukautettua GitHub Actions -työnkulkua ei tarvita. CORS sallii nykyisen GitHub Pages -originin ja paikallisen kehityspalvelun; päivitä wrangler.jsonc, jos sivuston osoite muuttuu.
 
-GitHub Pages julkaisee `main`-haaran `docs`-kansion. Aja `npm run build:pages` ja puske lähdekoodin sekä `docs`-kansion muutokset. Kaikki fontit ovat laitteen omia. Sivun avaaminen uudelleen vaatii yhteyden GitHub Pagesiin; service workeria ei käytetä.
+## Tietojen käsittely
+
+Hintahaku lähettää vain tuotteen nimen ja kuntoluokan hintapalvelulle sekä hakuehdot markkinapaikoille. Kuvaus, hankintahinta, kulut ja muut omat tiedot jäävät selaimeen. Käyttöliittymä kertoo tämän ennen hakupainiketta.
+
+Luonnos tallennetaan localStorageen ja erikseen tallennetut tuotteet IndexedDB:hen. Haettuja ilmoituksia tai niistä laskettuja tuloksia ei tallenneta pysyvästi selaimeen; tallennettu markkina-arvio avataan uuteen hintahakuun. Lähdetiedot vanhenevat 15 minuutissa ja Worker-välimuisti noudattaa samaa aikaa (Huuto.net sallii enintään 24 tuntia). Palvelu ei tallenna myyjien nimiä, kuvia tai yhteystietoja eikä kirjoita hakujen sisältöjä sovelluslokiin. Verkkopalveluntarjoajat voivat käsitellä pyyntöjen teknisiä metatietoja omien käytäntöjensä mukaisesti.
+
+## Kehitys ja testaus
+
+```sh
+npm run dev
+npm test
+npm run test:browser
+npm run build:pages
+```
+
+Selaintestit tarvitsevat käynnissä olevan Viten portissa 5173 ja Playwright Chromiumin (`npx playwright install chromium`). Markkinahaun testi käynnistää oman Viten porttiin 5174 ja käyttää ainoastaan testissä korvattua hakupalvelua. `FLIPGAIN_TEST_URL` vaihtaa testattavan sivun, jossa uuden haun täytyy silloin olla käytössä. Vanhat manuaaliset laskentapolut testataan ilman verkkoa. Uuden haun testit käyttävät vain testeihin määriteltyjä vastauksia: lähdehäiriöt ja uudelleenyritys, valintojen vaikutus mediaaniin, pyyntöjen ja voittavien tarjousten erottelu, vanheneminen, kustannukset, lähdetietojen tallentamattomuus ja mobiiliasettelu. Testivertailuja ei toimiteta sivuston datana.
+
+Paikallinen Worker: `npm run dev:market`. Käyttöliittymän osoitteen voi ohittaa kehityksessä muuttujalla `VITE_MARKET_API=http://127.0.0.1:8787`. Julkaisun jälkeen varmista myös oikea haku selaimesta; paikallinen tai testivastauksilla läpäisty testi ei osoita, että lähde sallii pilvestä tehdyt pyynnöt.

@@ -1,6 +1,7 @@
 import {findReference} from './market-references.js';
+import {marketSummary,cleanQuery} from './market-data.js';
 export const conditions={new:'Uudenveroinen',good:'Hyvä',fair:'Kulunut mutta toimiva',poor:'Viallinen / korjattava'};
-export const priceBases={reference:'Tallennettu mallikohtainen vertailu',market:'Oma tieto käytetyn hintatasosta',formula:'Vain karkea arvonalenemislaskelma'};
+export const priceBases={live:'Haetut markkinahinnat',reference:'Tallennettu mallikohtainen vertailu',market:'Oma tieto käytetyn hintatasosta',formula:'Vain karkea arvonalenemislaskelma'};
 export const goals={profit:'Paras hinta',quick:'Nopea kauppa',trade:'Vaihtokauppa'};
 // These are deliberately broad product-planning assumptions, not market statistics.
 export const categories={
@@ -26,6 +27,13 @@ export function estimate(product,{now=Date.now()}={}){
   const expenses=number(product.expenses??0,'Myyntikulut');
   const fee=number(product.fee??0,'Välityspalkkio',{max:99.9});
   const basis={buy,expenses,fee,version:4};
+  if(product.priceBasis==='live'){
+    if(product.liveConfirmed!=='yes'||cleanQuery(product.marketReport?.query).toLowerCase()!==cleanQuery(product.name).toLowerCase()||product.marketReport?.condition!==product.condition)throw new Error('Hae hinnat ja vahvista vertailujen sopivuus.');
+    const market=marketSummary(product.marketReport,product.marketSelected,now);
+    if(!market.count)throw new Error('Valitse vähintään yksi vertailuilmoitus.');
+    const typical=round(market.median),ask=round(typical*(product.goal==='quick'?.9:1)),net=round(ask*(1-fee/100)-expenses);
+    return {...basis,sufficient:true,method:'live',market,typical,ask,net,profit:buy===null?null:round(net-buy),low:market.low,high:market.high,breakEven:buy===null?null:round((buy+expenses)/(1-fee/100))};
+  }
   if(product.priceBasis==='market'||product.priceBasis==='reference'){
     const reference=product.priceBasis==='reference'?findReference(product,now):null;
     if(product.priceBasis==='reference'&&(!reference||product.referenceConfirmed!=='yes'))throw new Error('Tarkista vertailuilmoituksen sopivuus ja vahvista hintaperuste uudelleen.');
@@ -69,7 +77,7 @@ export function guidance(product){
   if(product.category==='sports')risks.push('Huomioi sesonki, koko ja turvallisuuteen vaikuttavat kulumat.');
   if(product.category==='tools')risks.push('Testaa toiminta ja huomioi akkujen, terien sekä muiden kulutusosien kunto.');
   if(product.category==='furniture')risks.push('Lisää mitat, materiaalit ja tieto purkamisesta. Varmista noutoon sopiva kuljetus.');
-  risks.push('Vertaa saman mallin ilmoituksia ennen julkaisua. Nimi tai vapaa kuvaus ei käynnistä markkinahakua.');
+  risks.push('Tarkista saman mallin ja vastaavan kunnon ilmoitukset ennen julkaisua. Hintatiedot eivät takaa toteutuvaa kauppaa.');
   return {ease,risks};
 }
 export function draftListing(product,valuation){

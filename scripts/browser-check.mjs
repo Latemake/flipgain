@@ -16,7 +16,7 @@ try{
   await page.locator('#name').fill('Oma testituote');await next(page);
   await page.locator('input[value=electronics]').check();await next(page);
   await page.locator('input[value=good]').check();await page.locator('#details').fill('Toimii, mukana laturi.');await next(page);
-  await page.locator('input[value=formula]').check();await next(page);
+  await page.locator('.manual-pricing').evaluate(el=>el.open=true);await page.locator('input[value=formula]').check();await next(page);
   await page.locator('#age').fill('0');await next(page);
   await page.locator('#referencePrice').fill('200');await next(page);
   await page.locator('input[value=trade]').check();await next(page);
@@ -32,12 +32,13 @@ try{
   await page.locator('#my-items').click();await page.locator('.saved-item').waitFor();assert.equal(await page.locator('.saved-item').count(),1);await page.locator('[data-open]').click();assert.match(await page.locator('.price').innerText(),/132,6/);
   await page.locator('#my-items').click();await page.locator('[data-delete]').click();await page.waitForFunction(()=>!document.querySelector('.saved-item'));await page.locator('#close-dialog').click();
   await page.locator('#new-product').click();await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'desktop-preview.png',fullPage:true,animations:'disabled'});
-  await page.locator('#name').fill('Vanha keräilyesine');await next(page);await page.locator('input[value=collectible]').check();await next(page);await page.locator('input[value=good]').check();await next(page);await page.locator('input[value=formula]').check();await next(page);await page.locator('input[value=profit]').check();await next(page);await next(page);await page.locator('#analyze').click();assert.equal(await page.locator('.price').count(),0);assert.match(await page.locator('.empty-report').innerText(),/asiantuntijan arvio/);
+  await page.locator('#name').fill('Vanha keräilyesine');await next(page);await page.locator('input[value=collectible]').check();await next(page);await page.locator('input[value=good]').check();await next(page);await page.locator('.manual-pricing').evaluate(el=>el.open=true);await page.locator('input[value=formula]').check();await next(page);await page.locator('input[value=profit]').check();await next(page);await next(page);await page.locator('#analyze').click();assert.equal(await page.locator('.price').count(),0);assert.match(await page.locator('.empty-report').innerText(),/asiantuntijan arvio/);
   await page.locator('#new-product').click();
   await page.clock.setFixedTime(new Date('2026-09-09T19:00:00Z'));
   await page.locator('#name').fill('kukirin g2 pro');await next(page);
   await page.locator('input[value=electronics]').check();await next(page);
   await page.locator('input[value=fair]').check();await page.locator('#details').fill('Sivussa lommo, jarrupalat uusittu, ajettu 1800 km.');await next(page);
+  await page.locator('.manual-pricing').evaluate(el=>el.open=true);
   assert.match(await page.locator('.source-card').innerText(),/349/);
   await page.locator('input[value=reference]').check();await next(page);
   assert.equal(await page.locator('input[name=referenceConfirmed]').isVisible(),true);

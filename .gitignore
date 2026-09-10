@@ -1,8 +1,11 @@
 node_modules/
+.wrangler/
+.dev.vars*
 dist/
 desktop-preview.png
 mobile-preview.png
 result-preview.png
+market-preview.png
 .env
 .env.*
 !.env.example
